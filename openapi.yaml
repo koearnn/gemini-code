@@ -1,0 +1,168 @@
+# Use Swagger 2.0 specification
+swagger: '2.0'
+
+info:
+  title: Gemini Clone API with Encryption
+  description: API endpoint for interacting with a Gemini-like backend and chat encryption/decryption services.
+  version: '1.0.2' # Incrementa la versión
+
+schemes:
+  - https
+
+produces:
+  - application/json
+consumes:
+  - application/json
+
+securityDefinitions:
+  firebase_auth:
+    authorizationUrl: "https://example.com/oauth/authorize" # CORREGIDO: URI de ejemplo válida
+    flow: "implicit"
+    type: "oauth2"
+    # Estas son las importantes para Google API Gateway con Firebase:
+    x-google-issuer: "https://securetoken.google.com/saas-stream-react-gcp" # Reemplaza con tu Project ID
+    x-google-audiences: "saas-stream-react-gcp" # Reemplaza con tu Project ID
+    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
+
+paths:
+  /generate: # Tu endpoint existente
+    post:
+      summary: Generate content using the Gemini model
+      operationId: generateGeminiResponse # Nombre de la función exportada en tu index.js
+      x-google-backend:
+        # URL directa de tu Cloud Function (Gen2)
+        address: https://us-central1-saas-stream-react-gcp.cloudfunctions.net/generateGeminiResponse
+      security:
+        - firebase_auth: []
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [prompt]
+            properties:
+              prompt: { type: string, description: "The user's input/prompt." }
+      responses:
+        '200':
+          description: Successful response
+          schema:
+            type: object
+            properties: { response: { type: string } }
+          headers: # Headers CORS para la respuesta del POST
+            Access-Control-Allow-Origin: { type: string }
+            Access-Control-Allow-Credentials: { type: boolean }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '500': { description: Internal Server Error }
+    options:
+      summary: CORS preflight for /generate
+      operationId: corsGenerate # Nombre único
+      x-google-backend:
+        address: https://us-central1-saas-stream-react-gcp.cloudfunctions.net/generateGeminiResponse
+      security: [] # Sin autenticación para OPTIONS
+      responses:
+        '204':
+          description: CORS preflight successful
+          headers:
+            Access-Control-Allow-Origin: { type: string }
+            Access-Control-Allow-Methods: { type: string }
+            Access-Control-Allow-Headers: { type: string }
+            Access-Control-Allow-Credentials: { type: boolean }
+            Access-Control-Max-Age: { type: integer, default: 3600 }
+
+  /encryptChatMessage:
+    post:
+      summary: Encrypts a chat message
+      operationId: encryptChatMessage # Nombre de la función exportada en tu index.js (que viene de chatCryptoKMS.js)
+      x-google-backend:
+        # URL directa de tu Cloud Function (Gen2)
+        address: https://us-central1-saas-stream-react-gcp.cloudfunctions.net/encryptChatMessage
+      security:
+        - firebase_auth: []
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [plaintext]
+            properties:
+              plaintext: { type: string }
+      responses:
+        '200':
+          description: Successful encryption
+          schema:
+            type: object
+            properties:
+              ciphertext: { type: string }
+              kmsKeyVersionName: { type: string }
+          headers: # Headers CORS para la respuesta del POST
+            Access-Control-Allow-Origin: { type: string }
+            Access-Control-Allow-Credentials: { type: boolean }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '500': { description: Internal Server Error }
+    options:
+      summary: CORS preflight for /encryptChatMessage
+      operationId: corsEncryptChatMessage # Nombre único
+      x-google-backend:
+        address: https://us-central1-saas-stream-react-gcp.cloudfunctions.net/encryptChatMessage
+      security: []
+      responses:
+        '204':
+          description: CORS preflight successful
+          headers:
+            Access-Control-Allow-Origin: { type: string }
+            Access-Control-Allow-Methods: { type: string }
+            Access-Control-Allow-Headers: { type: string }
+            Access-Control-Allow-Credentials: { type: boolean }
+            Access-Control-Max-Age: { type: integer, default: 3600 }
+
+  /decryptChatMessage:
+    post:
+      summary: Decrypts a chat message
+      operationId: decryptChatMessage # Nombre de la función exportada en tu index.js (que viene de chatCryptoKMS.js)
+      x-google-backend:
+        # URL directa de tu Cloud Function (Gen2)
+        address: https://us-central1-saas-stream-react-gcp.cloudfunctions.net/decryptChatMessage
+      security:
+        - firebase_auth: []
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [ciphertext, kmsKeyVersionName]
+            properties:
+              ciphertext: { type: string }
+              kmsKeyVersionName: { type: string }
+      responses:
+        '200':
+          description: Successful decryption
+          schema:
+            type: object
+            properties:
+              plaintext: { type: string }
+          headers: # Headers CORS para la respuesta del POST
+            Access-Control-Allow-Origin: { type: string }
+            Access-Control-Allow-Credentials: { type: boolean }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '500': { description: Internal Server Error }
+    options:
+      summary: CORS preflight for /decryptChatMessage
+      operationId: corsDecryptChatMessage # Nombre único
+      x-google-backend:
+        address: https://us-central1-saas-stream-react-gcp.cloudfunctions.net/decryptChatMessage
+      security: []
+      responses:
+        '204':
+          description: CORS preflight successful
+          headers:
+            Access-Control-Allow-Origin: { type: string }
+            Access-Control-Allow-Methods: { type: string }
+            Access-Control-Allow-Headers: { type: string }
+            Access-Control-Allow-Credentials: { type: boolean }
+            Access-Control-Max-Age: { type: integer, default: 3600 }
